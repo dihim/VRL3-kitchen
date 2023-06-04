@@ -1,4 +1,10 @@
 ## Visual Deep Reinforcement Learning in 3 Stages (VRL3)
+docker run -it --rm -v "$(pwd)"/src:/code -v "$(pwd)"/vrl3data:/vrl3data cwatcherw/vrl3:1.5
+export PYTHONPATH="/code/relay_policy_learning/adept_envs"
+pip uninstall dm_control
+pip install dm_control
+python train_kitchen.py task=door debug=1
+
 
 Official code for the paper VRL3: A Data-Driven Framework for Visual Deep Reinforcement Learning. Summary site: https://sites.google.com/nyu.edu/vrl3.
 
