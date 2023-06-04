@@ -69,7 +69,7 @@ class BasicAdroitEnv(gym.Env): # , ABC
 
         if hybrid_state :
             if self.env_id in _mj_envs:
-                self._env.spec.observation_dim += 24 # Assuming 24 states for adroit hand.
+                self._env.spec.observation_dim += 24 # Assuming 24 states for ardiot
 
         self.spec = self._env.spec
         self.observation_dim = self.spec.observation_dim
@@ -273,12 +273,24 @@ class BasicFrankaEnv(gym.Env):
         if encoder_type is not None:
             self.encoder = make_encoder(encoder=None, encoder_type=self.encoder_type, device=self.device, is_eval=True)
             self.transforms = self.encoder.get_transform()
-
+        print('heeedp')
         if test_image:
-            print("======================adroit image test mode==============================")
-            print("======================adroit image test mode==============================")
-            print("======================adroit image test mode==============================")
-            print("======================adroit image test mode==============================")
+            print("======================kitchen image test mode==============================")
+            print("======================kitchen image test mode==============================")
+            print("======================kitchen image test mode==============================")
+            print("======================kitchen image test mode==============================")
+            img = env.env.render(mode="rgb_array")
+            from PIL import Image
+            print('ayya')
+            # Convert the NumPy array to a PIL image
+            image = Image.fromarray(img)
+            # Save the PIL image to a file
+            image.save("/vrl3data/franka_test.png")
+            img_reshape = img.reshape(1, 12288)
+            img_reshape_norm = img_reshape.reshape(64, 64, 3)
+            image = Image.fromarray(img_reshape_norm)
+            image.save("/vrl3data/franka_test-2.png")
+
         self.test_image = test_image
 
         self.cameras = cameras
@@ -299,14 +311,16 @@ class BasicFrankaEnv(gym.Env):
         self._env.spec.observation_dim = latent_dim
         self._env.spec.action_dim = 9 # TODO magic number
         self._env.spec.horizon = self._env.env.spec.max_episode_steps
+        print("Max steos", self._env.env.spec.max_episode_steps)
         # print("==============")
         # print(dir(self._env))
         # print("high: ", self._env.action_space)
         # quit()
+        print("mj envs", _mj_envs)
 
         if hybrid_state :
-            if self.env_id in _mj_envs:
-                self._env.spec.observation_dim += 24 # Assuming 24 states for adroit hand.
+            self._env.spec.observation_dim += 9 # Assuming 9 states for franka arm.
+            print(self._env.spec.observation_dim, "franka arm")
 
         self.spec = self._env.spec
         self.observation_dim = self.spec.observation_dim
