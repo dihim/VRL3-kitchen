@@ -2,6 +2,8 @@
 #
 # This source code is licensed under the MIT license found in the
 # LICENSE file in the root directory of this source tree.
+import minari
+
 import datetime
 import io
 import random
@@ -13,6 +15,7 @@ import torch
 import torch.nn as nn
 from torch.utils.data import IterableDataset
 
+DATASET_ID = "kitchen-complete-v0"
 
 def episode_len(episode):
     # subtract -1 because the dummy first transition
@@ -40,10 +43,16 @@ class ReplayBufferStorage:
         self._replay_dir = replay_dir
         replay_dir.mkdir(exist_ok=True)
         self._current_episode = defaultdict(list)
+        # Run if Dset hasn't been downlaoded
+        minari.download_dataset(dataset_id=DATASET_ID)
+        self._dataset = minari.load_dataset(DATASET_ID)
         self._preload()
 
     def __len__(self):
         return self._num_transitions
+    
+    def get_dataset(self):
+        return self._dataset
 
     def add(self, time_step):
         for spec in self._data_specs:
@@ -51,6 +60,7 @@ class ReplayBufferStorage:
             if np.isscalar(value):
                 value = np.full(spec.shape, value, spec.dtype)
             # print(spec.name, spec.shape, spec.dtype, value.shape, value.dtype)
+            #print(spec.shape, "1", value.shape, "2", spec.dtype, "3", value.dtype)
             assert spec.shape == value.shape and spec.dtype == value.dtype
             self._current_episode[spec.name].append(value)
         if time_step.last():
@@ -64,10 +74,16 @@ class ReplayBufferStorage:
     def _preload(self):
         self._num_episodes = 0
         self._num_transitions = 0
-        for fn in self._replay_dir.glob('*.npz'):
-            _, _, eps_len = fn.stem.split('_')
+        for episode_data in self._dataset:
             self._num_episodes += 1
-            self._num_transitions += int(eps_len)
+            self._num_transitions += int(episode_data.total_timesteps)
+        print("working preload")
+        # self._num_episodes = 0
+        # self._num_transitions = 0
+        # for fn in self._replay_dir.glob('*.npz'):
+        #     _, _, eps_len = fn.stem.split('_')
+        #     self._num_episodes += 1
+        #     self._num_transitions += int(eps_len)
 
     def _store_episode(self, episode):
         eps_idx = self._num_episodes
@@ -95,6 +111,7 @@ class ReplayBuffer(IterableDataset):
         self._save_snapshot = save_snapshot
         self._is_adroit = is_adroit
         self._return_next_action = return_next_action
+
 
     def set_nstep(self, nstep):
         self._nstep = nstep

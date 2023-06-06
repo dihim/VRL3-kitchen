@@ -333,7 +333,7 @@ class VRL3Agent:
         self.act_dim = action_shape[0]
 
         if use_sensor:
-            downstream_input_dim = self.encoder.repr_dim + 24
+            downstream_input_dim = self.encoder.repr_dim + 9
         else:
             downstream_input_dim = self.encoder.repr_dim
 
@@ -414,7 +414,7 @@ class VRL3Agent:
         dist = self.actor(obs_combined, stddev)
         if eval_mode:
             action = dist.mean
-        else:
+        else: 
             action = dist.sample(clip=None)
             if step < self.num_expl_steps:
                 action.uniform_(-1.0, 1.0)

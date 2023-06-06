@@ -48,7 +48,9 @@ elif ENV_TYPE == 'kitchen':
     from kitchen import KitchenEnv
 else:
     import dmc
-IS_ADROIT = True if ENV_TYPE == 'adroit' else False
+#IS_ADROIT = True if ENV_TYPE == 'adroit' else False
+IS_ADROIT = True
+
 
 def get_ram_info():
     # get info on RAM usage
@@ -161,14 +163,12 @@ class Workspace:
                       )
         elif env_type == 'kitchen':
             # reward rescale can either be added in the env or in the agent code when reward is used
-            self.train_env = KitchenEnv(env_name, test_image=True, num_repeats=self.cfg.action_repeat,
+            self.train_env = KitchenEnv(env_name, test_image=False, num_repeats=self.cfg.action_repeat,
                     num_frames=self.cfg.frame_stack, env_feature_type=self.env_feature_type,
                                        device=self.device, reward_rescale=self.cfg.reward_rescale)
             self.eval_env = KitchenEnv(env_name, test_image=False, num_repeats=self.cfg.action_repeat,
                     num_frames=self.cfg.frame_stack, env_feature_type=self.env_feature_type,
                                       device=self.device, reward_rescale=self.cfg.reward_rescale)
-
-            print("OBS Spec Kitchen", self.train_env.observation_spec())
 
             data_specs = (self.train_env.observation_spec(),
                       self.train_env.observation_sensor_spec(),
@@ -198,7 +198,7 @@ class Workspace:
             self.work_dir / 'buffer', self.cfg.replay_buffer_size,
             self.cfg.batch_size, self.cfg.replay_buffer_num_workers,
             self.cfg.save_snapshot, self.cfg.nstep, self.cfg.discount, self.replay_buffer_fetch_every,
-            is_adroit=IS_ADROIT)
+            is_adroit=True)
         self._replay_iter = None
 
         self.video_recorder = VideoRecorder(
@@ -254,7 +254,7 @@ class Workspace:
             log('step', self.global_step)
 
     def eval_adroit(self, force_number_episodes=None, do_log=True):
-        if ENV_TYPE != 'adroit':
+        if ENV_TYPE != 'kitchen':
             return self.eval_dmc()
 
         step, episode, total_reward = 0, 0, 0
@@ -329,51 +329,93 @@ class Workspace:
         if self.cfg.num_demo >= 0:
             demo_data = demo_data[:self.cfg.num_demo]
 
+        demo_data = replay_storage.get_dataset()
+
         """
         the adroit demo data is in raw state, so we need to convert them into image data
         we init an env and run episodes with the stored actions in the demo data
         then put the image and sensor data into the replay buffer, also need to clip actions here 
         this part is basically following the RRL code
         """
-        demo_env = AdroitEnv(env_name, test_image=False, num_repeats=1, num_frames=self.cfg.frame_stack,
+        demo_env = KitchenEnv(env_name, test_image=False, num_repeats=1, num_frames=self.cfg.frame_stack,
                 env_feature_type=self.env_feature_type, device=self.device, reward_rescale=self.cfg.reward_rescale)
         demo_env.reset()
-
+        #print(self.work_dir)
+        demo_recorder = VideoRecorder(self.work_dir if self.cfg.save_video else None)
         total_data_count = 0
-        for i_path in range(len(demo_data)):
-            path = demo_data[i_path]
+        for episode_index, episode_data in enumerate(demo_data):
             demo_env.reset()
-            demo_env.set_env_state(path['init_state_dict'])
             time_step = demo_env.get_current_obs_without_reset()
+            #print("Init time step", time_step)
             replay_storage.add(time_step)
-
             ep_reward = 0
             ep_n_goal = 0
-            for i_act in range(len(path['actions'])):
+            from tqdm import tqdm
+            demo_recorder.init(demo_env, enabled=False)
+            for i_step, dataset_obs in tqdm(enumerate(episode_data.observations)):
                 total_data_count += 1
-                action = path['actions'][i_act]
-                action = action.astype(np.float32)
-                # when action is put into the environment, they will be clipped.
-                action[action > 1] = 1
-                action[action < -1] = -1
 
-                # when they collect the demo data, they actually did not use a timelimit...
-                if i_act == len(path['actions']) - 1:
+                #when they collect the demo data, they actually did not use a timelimit...
+                if i_step == len(episode_data.actions) - 1:
                     force_step_type = 'last'
                 else:
                     force_step_type = 'mid'
-
-                time_step = demo_env.step(action, force_step_type=force_step_type)
+                
+                observation_data = dataset_obs[-59:]
+                robot_joint_pos = observation_data[:9] 
+                demo_env._env.sim.data.qpos[:9] = robot_joint_pos.astype(np.float32)
+                # demo_env._env.sim.data.qvel[:] = data['qvel'][i_frame].copy()
+                time_step = demo_env.step(episode_data.actions[i_step].astype(np.float32), force_step_type=force_step_type)
                 replay_storage.add(time_step)
 
-                reward = time_step.reward
-                ep_reward += reward
+                ep_reward = time_step.reward
 
-                goal_achieved = time_step.n_goal_achieved
-                ep_n_goal += goal_achieved
-            if verbose:
-                print('demo trajectory %d, len: %d, return: %.2f, goal achieved steps: %d' %
-                      (i_path, len(path['actions']), ep_reward, ep_n_goal))
+                demo_recorder.record(demo_env)
+
+                if force_step_type =="last":
+                    break
+            print('episode trajectory: ', episode_index, " | Reward: ", ep_reward)
+            demo_recorder.save(f'{episode_index}.mp4')
+            break
+
+
+
+
+        # total_data_count = 0
+        # for i_path in range(len(demo_data)):
+        #     path = demo_data[i_path]
+        #     demo_env.reset()
+        #     demo_env.set_env_state(path['init_state_dict'])
+        #     time_step = demo_env.get_current_obs_without_reset()
+        #     replay_storage.add(time_step)
+
+        #     ep_reward = 0
+        #     ep_n_goal = 0
+        #     for i_act in range(len(path['actions'])):
+        #         total_data_count += 1
+        #         action = path['actions'][i_act]
+        #         action = action.astype(np.float32)
+        #         # when action is put into the environment, they will be clipped.
+        #         action[action > 1] = 1
+        #         action[action < -1] = -1
+
+        #         # when they collect the demo data, they actually did not use a timelimit...
+        #         if i_act == len(path['actions']) - 1:
+        #             force_step_type = 'last'
+        #         else:
+        #             force_step_type = 'mid'
+
+        #         time_step = demo_env.step(action, force_step_type=force_step_type)
+        #         replay_storage.add(time_step)
+
+        #         reward = time_step.reward
+        #         ep_reward += reward
+
+        #         goal_achieved = time_step.n_goal_achieved
+        #         ep_n_goal += goal_achieved
+        #     if verbose:
+        #         print('demo trajectory %d, len: %d, return: %.2f, goal achieved steps: %d' %
+        #               (i_path, len(path['actions']), ep_reward, ep_n_goal))
         if verbose:
             print("Demo data load finished, total data count:", total_data_count)
 
@@ -403,8 +445,11 @@ class Workspace:
         stage2_n_update = self.cfg.stage2_n_update
         if stage2_n_update > 0:
             for i_stage2 in range(stage2_n_update):
+                print("going into actor update")
                 metrics = self.agent.update(self.replay_iter, i_stage2, stage=2, use_sensor=IS_ADROIT)
+                print("done update")
                 if i_stage2 % self.cfg.stage2_eval_every_frames == 0:
+                    print("eval time")
                     average_score, succ_rate = self.eval_adroit(force_number_episodes=self.cfg.stage2_num_eval_episodes,
                                                                 do_log=False)
                     print('Stage 2 step %d, Q(s,a): %.2f, Q loss: %.2f, score: %.2f, succ rate: %.2f' %

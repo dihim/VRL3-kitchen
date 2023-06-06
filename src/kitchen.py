@@ -13,10 +13,10 @@ import numpy as np
 from dm_env import StepType, specs
 from collections import OrderedDict
 import mj_envs
+import sys
+sys.path.append("/code/relay_policy_learning/adept_envs")
 import adept_envs # TODO worry about this later
 from adept_envs.franka import kitchen_multitask_v0
-import sys
-sys.path.append("/workspace/relay_policy_learning/adept_envs")
 import gym
 
 
@@ -132,6 +132,7 @@ class FrameStackWrapper(dm_env.Environment):
             pixels = pixels[0]
         return pixels.transpose(2, 0, 1).copy()
 
+
     def reset(self):
         time_step = self._env.reset()
         pixels = self._extract_pixels(time_step)
@@ -232,7 +233,7 @@ def make_basic_env(env, cam_list=[], from_pixels=False, hybrid_state=None, test_
 
 class KitchenEnv:
     # a wrapper class that will make kiten env looks like a dmc env
-    def __init__(self, env_name, test_image=False, cam_list=None,
+    def __init__(self, env_name, test_image=False, cam_list=['side'],
         num_repeats=2, num_frames=3, env_feature_type='pixels', device=None, reward_rescale=False): 
         # default_env_to_cam_list = {
         #     'hammer-v0': ['top'],
@@ -289,7 +290,7 @@ class KitchenEnv:
 
         self._env = env
         self.obs_dim = env.spec.observation_dim
-        self.obs_sensor_dim = 24
+        self.obs_sensor_dim = 9
         self.act_dim = env.spec.action_dim
         self.horizon = env.spec.horizon
         number_channel = 3 * num_frames
@@ -297,12 +298,15 @@ class KitchenEnv:
 
 
         if env_feature_type == 'pixels':
-            self._obs_spec = specs.BoundedArray(shape=(number_channel, 84, 84), dtype='uint8', name='observation', minimum=0, maximum=255)
+            self._obs_spec = specs.BoundedArray(shape=(number_channel, 64, 64), dtype='uint8', name='observation', minimum=0, maximum=255)
             self._obs_sensor_spec = specs.Array(shape=(self.obs_sensor_dim,), dtype='float32', name='observation_sensor')
         elif env_feature_type == 'resnet18' or env_feature_type == 'resnet34' :
             self._obs_spec = specs.Array(shape=(512 * num_frames *len(cam_list) ,), dtype='float32', name='observation') # TODO fix magic number 
             self._obs_sensor_spec = specs.Array(shape=(self.obs_sensor_dim,), dtype='float32', name='observation_sensor')
         self._action_spec = specs.BoundedArray(shape=(self.act_dim,), dtype='float32', name='action', minimum=-1.0, maximum=1.0)
+
+    def render(self):
+        return self._env._env.env.render(mode="rgb_array")
 
     def reset(self):
         # pixels and sensor values
@@ -373,7 +377,7 @@ class KitchenEnv:
                                 action=action,
                                 reward=reward,
                                 discount=discount,
-                                n_goal_achieved=n_goal_achieved,
+                                n_goal_achieved=0,
                                 time_limit_reached=time_limit_reached)
 
         if debug:

@@ -281,7 +281,6 @@ class BasicFrankaEnv(gym.Env):
             print("======================kitchen image test mode==============================")
             img = env.env.render(mode="rgb_array")
             from PIL import Image
-            print('ayya')
             # Convert the NumPy array to a PIL image
             image = Image.fromarray(img)
             # Save the PIL image to a file
@@ -333,7 +332,7 @@ class BasicFrankaEnv(gym.Env):
         if self.encoder is not None:
             for cam in self.cameras :
                 # img = self._env.env.sim.render(width=self.width, height=self.height, mode='offscreen', camera_name=cam, device_id=0)
-                img = self._env.env.sim.render(width=84, height=84)
+                img = self._env.env.sim.render(width=64, height=64)
                 # img = env.env.sim.render(width=84, height=84, mode='offscreen')
                 img = img[::-1, :, : ] # Image given has to be flipped
                 if self.channels_first :
@@ -350,7 +349,8 @@ class BasicFrankaEnv(gym.Env):
         else:
             if not self.test_image:
                 for cam in self.cameras : # for each camera, render once
-                    img = self._env.env.sim.render(width=84, height=84)
+                    # img = self._env.env.sim.render(width=64, height=64)
+                    img = self._env.env.render(mode="rgb_array")
                     # img = self._env.env.sim.render(width=self.width, height=self.height, mode='offscreen', camera_name=cam, device_id=0) # TODO device id will think later
                     # img = img[::-1, :, : ] # Image given has to be flipped
                     if self.channels_first :
@@ -360,7 +360,7 @@ class BasicFrankaEnv(gym.Env):
                     # img = Image.fromarray(img) # TODO is this necessary?
                     imgs.append(img)
             else:
-                img = (np.random.rand(1, 84, 84) * 255).astype(np.uint8)
+                img = (np.random.rand(1, 64, 64) * 255).astype(np.uint8)
                 imgs.append(img)
             pixels = np.concatenate(imgs, axis=0)
 
@@ -383,7 +383,19 @@ class BasicFrankaEnv(gym.Env):
         if not self.hybrid_state : # this defaults to True... so RRL uses hybrid state
             qp = None
 
-        sensor_info = qp
+        sensor_info = self._env.env.obs_dict["qp"]
+
+        # DISPLAY INIT OBS
+        # from PIL import Image
+        # print(pixels.shape)
+        # # Convert the NumPy array to a PIL image
+        # print(pixels.dtype)
+        # image = Image.fromarray(pixels.transpose((1, 2, 0)))
+        # # Save the PIL image to a file
+        # image.save("/vrl3data/demo_franka_pixel.png")
+        # print("Saving demo frank picture")
+
+        
         return pixels, sensor_info
 
     def get_env_infos(self):
@@ -417,9 +429,9 @@ class BasicFrankaEnv(gym.Env):
         n_goal_achieved = 0
         for i_action in range(self._num_repeats):
             obs, reward, done, env_info = self._env.step(action)
-            reward_sum += reward
-            if env_info['goal_achieved'] == True:
-                n_goal_achieved += 1
+            reward_sum = reward
+            #if env_info['goal_achieved'] == True:
+            n_goal_achieved = reward
             if done:
                 break
         env_info['n_goal_achieved'] = n_goal_achieved
