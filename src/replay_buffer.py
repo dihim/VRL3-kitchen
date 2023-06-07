@@ -15,8 +15,8 @@ import torch
 import torch.nn as nn
 from torch.utils.data import IterableDataset
 
-#DATASET_ID = "kitchen-complete-v0"
-DATASET_ID = "kitchen-mixed-v0"
+DATASET_ID = "kitchen-complete-v0"
+#DATASET_ID = "kitchen-mixed-v0"
 
 def episode_len(episode):
     # subtract -1 because the dummy first transition

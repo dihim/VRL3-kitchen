@@ -446,6 +446,7 @@ class VRL3Agent:
 
         # batch data
         batch = next(replay_iter)
+        
         if use_sensor: # TODO might want to...?
             obs, action, reward, discount, next_obs, obs_sensor, obs_sensor_next = utils.to_torch(batch, self.device)
         else:

@@ -320,6 +320,7 @@ class Workspace:
         demo_path = os.path.join(demo_folder_path, env_name + "_demos.pickle")
         return demo_path
 
+    # called like:   self.load_demo(self.replay_storage, self.cfg.task_name)
     def load_demo(self, replay_storage, env_name, verbose=True):
         # will load demo data and put them into a replay storage
         demo_path = self.get_demo_path(env_name)
@@ -331,6 +332,8 @@ class Workspace:
         if self.cfg.num_demo >= 0:
             demo_data = demo_data[:self.cfg.num_demo]
         demo_data = replay_storage.get_dataset()
+        print(f"demo_data type: {type(demo_data)}")
+        print(f"demo_data.shape = {np.shape(demo_data)}")
 
         """
         the adroit demo data is in raw state, so we need to convert them into image data
@@ -391,7 +394,14 @@ class Workspace:
         print("\n=== Training started! ===")
         """=================================== LOAD PRETRAINED MODEL ==================================="""
         if self.cfg.stage1_use_pretrain:
-            self.agent.load_pretrained_encoder(self.get_pretrained_model_path(self.cfg.stage1_model_name))
+            if self.cfg.stage1_model_name == 'vc1':
+                import vc_models
+                from vc_models.models.vit import model_utils
+                vc1_model,embd_size,model_transforms,model_info = model_utils.load_model(model_utils.VC1_BASE_NAME)
+                self.agent.encoder = vc1_model
+                print(f"\n\n\nmodel info:\n {model_info}")
+            else:
+                self.agent.load_pretrained_encoder(self.get_pretrained_model_path(self.cfg.stage1_model_name))
         self.agent.switch_to_RL_stages()
 
         """========================================= LOAD DATA ========================================="""
@@ -404,7 +414,7 @@ class Workspace:
         from torch.utils.tensorboard import SummaryWriter
         import os
         working_dir = os.getcwd()
-        log_dir = os.path.join(working_dir, "tb", "stage2_tb")
+        log_dir = os.path.join(working_dir, "tb", "stage2mixed_tb")
         writer = SummaryWriter(log_dir)  # Replace 'runs/experiment_name' with your desired log directory
         stage2_start_time = time.time()
         stage2_n_update = self.cfg.stage2_n_update
@@ -447,7 +457,7 @@ class Workspace:
                 episode_frame_since_log = episode_step_since_log * self.cfg.action_repeat
                 with self.logger.log_and_dump_ctx(self.global_frame, ty='train') as log:
                         log('fps', episode_frame_since_log / elapsed_time)
-                        #log('total_time', total_time)
+                        log('total_time', total_time)
                         log('episode_reward', np.mean(episode_reward_list))
                         log('episode_length', np.mean(episode_frame_list))
                         log('episode', self.global_episode)
