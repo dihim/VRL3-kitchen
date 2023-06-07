@@ -19,13 +19,13 @@ discount: 0.99
 # eval
 eval_every_frames: 50000
 num_eval_episodes: 25
-stage2_eval_every_frames: 1
-stage2_num_eval_episodes: 1
+stage2_eval_every_frames: 5000
+stage2_num_eval_episodes: 5
 # snapshot
 save_snapshot: false
 # replay buffer
-replay_buffer_size: 1000000
-replay_buffer_num_workers: 4
+replay_buffer_size: 1e5  # was 1e6
+replay_buffer_num_workers: 1
 nstep: 3
 batch_size: 256
 # misc
@@ -54,8 +54,8 @@ stage1_use_pretrain: true # if false then we start from scratch
 
 # ====== stage 2 ======
 load_demo: true
-num_demo: 1
-stage2_n_update: 1
+num_demo: 25
+stage2_n_update: 30001
 
 # ====== stage 3 ======
 num_seed_frames: 0

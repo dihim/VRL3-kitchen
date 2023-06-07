@@ -15,7 +15,8 @@ import torch
 import torch.nn as nn
 from torch.utils.data import IterableDataset
 
-DATASET_ID = "kitchen-complete-v0"
+#DATASET_ID = "kitchen-complete-v0"
+DATASET_ID = "kitchen-mixed-v0"
 
 def episode_len(episode):
     # subtract -1 because the dummy first transition
@@ -64,8 +65,11 @@ class ReplayBufferStorage:
             assert spec.shape == value.shape and spec.dtype == value.dtype
             self._current_episode[spec.name].append(value)
         if time_step.last():
+            #print(f"\ntime_step.last call: {time_step.last()}")
             episode = dict()
+            #print(f"\n================================================\n")
             for spec in self._data_specs:
+                #print(f"self._data_specs has spec: {spec.name}")
                 value = self._current_episode[spec.name]
                 episode[spec.name] = np.array(value, spec.dtype)
             self._current_episode = defaultdict(list)
@@ -124,6 +128,7 @@ class ReplayBuffer(IterableDataset):
         try:
             episode = load_episode(eps_fn)
         except:
+            print(f'failed to store episode {eps_fn}')
             return False
         eps_len = episode_len(episode)
         while eps_len + self._size > self._max_size:
@@ -135,6 +140,7 @@ class ReplayBuffer(IterableDataset):
         self._episode_fns.sort()
         self._episodes[eps_fn] = episode
         self._size += eps_len
+        #print(f"size of episode: {len(self._episode_fns)}")
 
         if not self._save_snapshot:
             eps_fn.unlink(missing_ok=True)

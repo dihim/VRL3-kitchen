@@ -275,8 +275,8 @@ class Workspace:
                 time_step = self.eval_env.step(action)
                 n_goal_achieved_total += time_step.n_goal_achieved
                 self.video_recorder.record(self.eval_env)
-                total_reward += time_step.reward
                 step += 1
+            total_reward += time_step.reward
 
             # here check if success for Adroit tasks. The threshold values come from the mj_envs code
             # e.g. https://github.com/ShahRutav/mj_envs/blob/5ee75c6e294dda47983eb4c60b6dd8f23a3f9aec/mj_envs/hand_manipulation_suite/pen_v0.py
@@ -293,6 +293,8 @@ class Workspace:
         success_rate_standard = total_success / n_eval_episode
         episode_reward_standard = total_reward / episode
         episode_length_standard = step * self.cfg.action_repeat / episode
+
+        success_rate_standard = episode_reward_standard/4.0  ## added this line ##
 
         if do_log:
             with self.logger.log_and_dump_ctx(self.global_frame, ty='eval') as log:
@@ -328,7 +330,6 @@ class Workspace:
         demo_data = pickle.load(open(demo_path, 'rb'))
         if self.cfg.num_demo >= 0:
             demo_data = demo_data[:self.cfg.num_demo]
-
         demo_data = replay_storage.get_dataset()
 
         """
@@ -378,47 +379,6 @@ class Workspace:
             demo_recorder.save(f'{episode_index}.mp4')
             break
 
-
-
-
-        # total_data_count = 0
-        # for i_path in range(len(demo_data)):
-        #     path = demo_data[i_path]
-        #     demo_env.reset()
-        #     demo_env.set_env_state(path['init_state_dict'])
-        #     time_step = demo_env.get_current_obs_without_reset()
-        #     replay_storage.add(time_step)
-
-        #     ep_reward = 0
-        #     ep_n_goal = 0
-        #     for i_act in range(len(path['actions'])):
-        #         total_data_count += 1
-        #         action = path['actions'][i_act]
-        #         action = action.astype(np.float32)
-        #         # when action is put into the environment, they will be clipped.
-        #         action[action > 1] = 1
-        #         action[action < -1] = -1
-
-        #         # when they collect the demo data, they actually did not use a timelimit...
-        #         if i_act == len(path['actions']) - 1:
-        #             force_step_type = 'last'
-        #         else:
-        #             force_step_type = 'mid'
-
-        #         time_step = demo_env.step(action, force_step_type=force_step_type)
-        #         replay_storage.add(time_step)
-
-        #         reward = time_step.reward
-        #         ep_reward += reward
-
-        #         goal_achieved = time_step.n_goal_achieved
-        #         ep_n_goal += goal_achieved
-        #     if verbose:
-        #         print('demo trajectory %d, len: %d, return: %.2f, goal achieved steps: %d' %
-        #               (i_path, len(path['actions']), ep_reward, ep_n_goal))
-        if verbose:
-            print("Demo data load finished, total data count:", total_data_count)
-
     def get_pretrained_model_path(self, stage1_model_name):
         # given a stage1 model name, return the path to the pretrained model
         data_folder_path = self.get_data_folder_path()
@@ -441,23 +401,29 @@ class Workspace:
 
         """========================================== STAGE 2 =========================================="""
         print("\n=== Stage 2 started ===")
+        from torch.utils.tensorboard import SummaryWriter
+        import os
+        working_dir = os.getcwd()
+        log_dir = os.path.join(working_dir, "tb", "stage2_tb")
+        writer = SummaryWriter(log_dir)  # Replace 'runs/experiment_name' with your desired log directory
         stage2_start_time = time.time()
         stage2_n_update = self.cfg.stage2_n_update
         if stage2_n_update > 0:
             for i_stage2 in range(stage2_n_update):
-                print("going into actor update")
+                #print("going into actor update")
                 metrics = self.agent.update(self.replay_iter, i_stage2, stage=2, use_sensor=IS_ADROIT)
-                print("done update")
+                #print("done update")
                 if i_stage2 % self.cfg.stage2_eval_every_frames == 0:
                     print("eval time")
                     average_score, succ_rate = self.eval_adroit(force_number_episodes=self.cfg.stage2_num_eval_episodes,
-                                                                do_log=False)
+                                                                do_log=True)
                     print('Stage 2 step %d, Q(s,a): %.2f, Q loss: %.2f, score: %.2f, succ rate: %.2f' %
-                          (i_stage2, metrics['critic_q1'],  metrics['critic_loss'], average_score, succ_rate))
+                            (i_stage2, metrics['critic_q1'],  metrics['critic_loss'], average_score, succ_rate))
+                    writer.add_scalar('st2 Average Score', average_score, i_stage2)  # tensorboard logging
+                    writer.add_scalar('st2 Success Rate', succ_rate, i_stage2)
                 if self.cfg.show_computation_time_est and i_stage2 > 0 and i_stage2 % self.cfg.show_time_est_interval == 0:
                     print_stage2_time_est(time.time()-stage2_start_time, i_stage2+1, stage2_n_update)
         print("Stage 2 finished in %.2f hours." % ((time.time()-stage2_start_time) / 3600))
-
         """========================================== STAGE 3 =========================================="""
         print("\n=== Stage 3 started ===")
         stage3_start_time = time.time()
@@ -481,12 +447,14 @@ class Workspace:
                 episode_frame_since_log = episode_step_since_log * self.cfg.action_repeat
                 with self.logger.log_and_dump_ctx(self.global_frame, ty='train') as log:
                         log('fps', episode_frame_since_log / elapsed_time)
-                        log('total_time', total_time)
+                        #log('total_time', total_time)
                         log('episode_reward', np.mean(episode_reward_list))
                         log('episode_length', np.mean(episode_frame_list))
                         log('episode', self.global_episode)
                         log('buffer_size', len(self.replay_storage))
                         log('step', self.global_step)
+                writer.add_scalar('st3 episode_reward', episode_reward, self.global_step)  # tensorboard logging
+                        
                 episode_step_since_log, episode_reward_list, episode_frame_list = 0, [0], [0]
             if self.cfg.show_computation_time_est and self.global_step > 0 and self.global_step % self.cfg.show_time_est_interval == 0:
                 print_stage3_time_est(time.time() - stage3_start_time, self.global_frame + 1, self.cfg.num_train_frames)
@@ -535,7 +503,7 @@ class Workspace:
 
             # take env step
             time_step = self.train_env.step(action)
-            episode_reward += time_step.reward
+            episode_reward = time_step.reward
             self.replay_storage.add(time_step)
             self.train_video_recorder.record(time_step.observation)
             episode_step += 1
@@ -551,6 +519,7 @@ class Workspace:
             if self.cfg.save_models:
                 if self.global_frame in (2, 100000, 500000, 1000000, 2000000, 4000000):
                     self.save_snapshot(suffix=str(self.global_frame))
+        writer.close()
 
         try:
             self.copy_to_azure()

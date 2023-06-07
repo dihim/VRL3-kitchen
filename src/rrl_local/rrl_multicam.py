@@ -17,6 +17,8 @@ def make_encoder(encoder, encoder_type, device, is_eval=True) :
             encoder = Encoder(encoder_type)
         elif encoder_type == 'identity' :
             encoder = IdentityEncoder()
+        elif encoder_type == 'vc1':
+            pass
         else :
             print("Please enter valid encoder_type.")
             raise Exception
@@ -343,7 +345,10 @@ class BasicFrankaEnv(gym.Env):
                 imgs.append(img)
 
             inp_img = torch.stack(imgs).to(self.device) # [num_cam, C, H, W]
-            z = self.encoder.get_features(inp_img).reshape(-1)
+            if self.encoder_type == 'vc1':
+                z = self.encoder(inp_img.unsqueeze(0))
+            else:
+                z = self.encoder.get_features(inp_img).reshape(-1)
             # assert z.shape[0] == self.latent_dim, "Encoded feature length : {}, Expected : {}".format(z.shape[0], self.latent_dim)
             pixels = z
         else:

@@ -144,3 +144,7 @@ exp_local/
 data/
 
 images/
+
+/home/ubuntu/proj/VRL3-kitchen/vrl3data/demonstrations/*
+/home/ubuntu/proj/VRL3-kitchen/vrl3data/trained_models/*
+/home/ubuntu/proj/VRL3-kitchen/vrl3data.zip
