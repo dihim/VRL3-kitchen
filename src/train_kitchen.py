@@ -394,14 +394,14 @@ class Workspace:
         print("\n=== Training started! ===")
         """=================================== LOAD PRETRAINED MODEL ==================================="""
         if self.cfg.stage1_use_pretrain:
-            if self.cfg.stage1_model_name == 'vc1':
-                import vc_models
-                from vc_models.models.vit import model_utils
-                vc1_model,embd_size,model_transforms,model_info = model_utils.load_model(model_utils.VC1_BASE_NAME)
-                self.agent.encoder = vc1_model
-                print(f"\n\n\nmodel info:\n {model_info}")
-            else:
-                self.agent.load_pretrained_encoder(self.get_pretrained_model_path(self.cfg.stage1_model_name))
+            # if self.cfg.stage1_model_name == 'vc1-base':
+            #     import vc_models
+            #     from vc_models.models.vit import model_utils
+            #     vc1_model,embd_size,model_transforms,model_info = model_utils.load_model(model_utils.VC1_BASE_NAME)
+            #     self.agent.encoder = vc1_model
+            #     print(f"\n\n\nmodel info:\n {model_info}")
+            # else:
+            self.agent.load_pretrained_encoder(self.get_pretrained_model_path(self.cfg.stage1_model_name))
         self.agent.switch_to_RL_stages()
 
         """========================================= LOAD DATA ========================================="""
@@ -492,7 +492,7 @@ class Workspace:
 
             # try to evaluate
             if eval_every_step(self.global_step):
-                self.logger.log('eval_total_time', self.timer.total_time(), self.global_frame)
+                self.logger.log('total_time', self.timer.total_time(), self.global_frame)
                 self.eval_adroit()
 
             # sample action
