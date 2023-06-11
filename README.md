@@ -1,10 +1,10 @@
 ## Visual Deep Reinforcement Learning in 3 Stages (VRL3)
 docker run -it --rm --gpus all -v "$(pwd)"/src:/code -v "$(pwd)"/vrl3data:/vrl3data cwatcherw/vrl3:1.5
 export PYTHONPATH="/code/relay_policy_learning/adept_envs"
-pip uninstall dm_control
-pip install dm_control
-pip install minari
-pip install gymnasium_robotics
+pip uninstall -y -q dm_control
+pip install -q dm_control
+pip install -q minari
+pip install -q gymnasium_robotics
 python train_kitchen.py
 
 
