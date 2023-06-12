@@ -414,7 +414,7 @@ class Workspace:
         from torch.utils.tensorboard import SummaryWriter
         import os
         working_dir = os.getcwd()
-        log_dir = os.path.join(working_dir, "tb", "stage2mixed_tb")
+        log_dir = os.path.join(working_dir, "tb", "partial123_tb")
         writer = SummaryWriter(log_dir)  # Replace 'runs/experiment_name' with your desired log directory
         stage2_start_time = time.time()
         stage2_n_update = self.cfg.stage2_n_update
@@ -431,6 +431,7 @@ class Workspace:
                             (i_stage2, metrics['critic_q1'],  metrics['critic_loss'], average_score, succ_rate))
                     writer.add_scalar('st2 Average Score', average_score, i_stage2)  # tensorboard logging
                     writer.add_scalar('st2 Success Rate', succ_rate, i_stage2)
+                    writer.add_scalar('episode_reward', average_score, i_stage2)  # tensorboard logging
                 if self.cfg.show_computation_time_est and i_stage2 > 0 and i_stage2 % self.cfg.show_time_est_interval == 0:
                     print_stage2_time_est(time.time()-stage2_start_time, i_stage2+1, stage2_n_update)
         print("Stage 2 finished in %.2f hours." % ((time.time()-stage2_start_time) / 3600))
@@ -457,13 +458,14 @@ class Workspace:
                 episode_frame_since_log = episode_step_since_log * self.cfg.action_repeat
                 with self.logger.log_and_dump_ctx(self.global_frame, ty='train') as log:
                         log('fps', episode_frame_since_log / elapsed_time)
-                        log('total_time', total_time)
+                        #log('total_time', total_time)
                         log('episode_reward', np.mean(episode_reward_list))
                         log('episode_length', np.mean(episode_frame_list))
                         log('episode', self.global_episode)
                         log('buffer_size', len(self.replay_storage))
                         log('step', self.global_step)
                 writer.add_scalar('st3 episode_reward', episode_reward, self.global_step)  # tensorboard logging
+                writer.add_scalar('episode_reward', episode_reward, self.global_step + self.cfg.stage2_n_update)  # tensorboard logging
                         
                 episode_step_since_log, episode_reward_list, episode_frame_list = 0, [0], [0]
             if self.cfg.show_computation_time_est and self.global_step > 0 and self.global_step % self.cfg.show_time_est_interval == 0:
@@ -492,7 +494,7 @@ class Workspace:
 
             # try to evaluate
             if eval_every_step(self.global_step):
-                self.logger.log('total_time', self.timer.total_time(), self.global_frame)
+                self.logger.log('eval_total_time', self.timer.total_time(), self.global_frame)
                 self.eval_adroit()
 
             # sample action
