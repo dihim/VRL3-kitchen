@@ -16,7 +16,7 @@ import torch.nn as nn
 from torch.utils.data import IterableDataset
 
 #DATASET_ID = "kitchen-complete-v0"
-DATASET_ID = "kitchen-mixed-v0"
+DATASET_ID = "kitchen-complete-v0"
 
 def episode_len(episode):
     # subtract -1 because the dummy first transition
@@ -39,7 +39,7 @@ def load_episode(fn):
 
 
 class ReplayBufferStorage:
-    def __init__(self, data_specs, replay_dir):
+    def __init__(self, data_specs, replay_dir, offline):
         self._data_specs = data_specs
         self._replay_dir = replay_dir
         replay_dir.mkdir(exist_ok=True)
@@ -47,9 +47,12 @@ class ReplayBufferStorage:
         # Run if Dset hasn't been downlaoded
         minari.download_dataset(dataset_id=DATASET_ID)
         self._dataset = minari.load_dataset(DATASET_ID)
-        self._preload()
+        self._preload(offline)
 
     def __len__(self):
+        return self._num_transitions
+    
+    def len(self):
         return self._num_transitions
     
     def get_dataset(self):
@@ -75,13 +78,14 @@ class ReplayBufferStorage:
             self._current_episode = defaultdict(list)
             self._store_episode(episode)
 
-    def _preload(self):
+    def _preload(self, offline):
         self._num_episodes = 0
         self._num_transitions = 0
-        for episode_data in self._dataset:
-            self._num_episodes += 1
-            self._num_transitions += int(episode_data.total_timesteps)
-        print("working preload")
+        if offline:
+            for episode_data in self._dataset:
+                self._num_episodes += 1
+                self._num_transitions += int(episode_data.total_timesteps)
+       
         # self._num_episodes = 0
         # self._num_transitions = 0
         # for fn in self._replay_dir.glob('*.npz'):

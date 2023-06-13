@@ -27,7 +27,7 @@ save_snapshot: false
 replay_buffer_size: 1e5  # was 1,000,000
 replay_buffer_num_workers: 1
 nstep: 3
-batch_size: 256
+batch_size: 17
 # misc
 seed: 1
 device: cuda
@@ -55,13 +55,13 @@ stage1_use_pretrain: true # if false then we start from scratch
 # ====== stage 2 ======
 load_demo: true
 num_demo: 25
-stage2_n_update: 30001
+stage2_n_update: 4000
 
 # ====== stage 3 ======
 num_seed_frames: 0
 
 agent:
-  _target_: vrl3_agent.VRL3Agent
+  _target_: vcrl_agent.VRL3Agent
   obs_shape: ??? # to be specified later
   action_shape: ??? # to be specified later
   device: ${device}

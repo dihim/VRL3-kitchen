@@ -1,11 +1,15 @@
 ## Visual Deep Reinforcement Learning in 3 Stages (VRL3)
-docker run -it --rm --gpus all -v "$(pwd)"/src:/code -v "$(pwd)"/vrl3data:/vrl3data cwatcherw/vrl3:1.5
+docker run -it --rm --gpus all -v "$(pwd)"/src:/code -v "$(pwd)"/vrl3data:/vrl3data cwatcherw/vrl3:1.5 --ipc=host
 export PYTHONPATH="/code/relay_policy_learning/adept_envs"
+export PYTHONPATH=$PYTHONPATH:/code/eai_vc
+export PYTHONPATH=$PYTHONPATH:/code/eai_vc/vc_models/src
 pip uninstall -y -q dm_control
 pip install -q dm_control
 pip install -q minari
 pip install -q gymnasium_robotics
+pip install -q timm
 python train_kitchen.py
+
 
 
 Official code for the paper VRL3: A Data-Driven Framework for Visual Deep Reinforcement Learning. Summary site: https://sites.google.com/nyu.edu/vrl3.
@@ -27,7 +31,7 @@ We are also doing some further clean-up of the code now. This repo will be updat
   - [Singularity setup](#singularity)
 - [Plotting example](#plotting)
 - [Technical details](#hyper)
-  - [Computation time](#computation)
+  - [Computation time](#computationre
   - [Known issues](#known-issues)
 - [Acknowledgement](#acknowledgement)
 - [Citation](#citation)
